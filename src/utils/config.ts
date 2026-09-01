@@ -17,7 +17,7 @@ export const PROJECT_CONFIG_PATH = path.join(PROJECT_DIR_NAME, "clover.json");
 export const ARCHIVE_PATH = path.join(GLOBAL_DIR, "archive.json");
 
 const providerSchema = z.object({
-  id: z.enum(["openai", "anthropic", "gemini", "ollama", "custom"]),
+  id: z.enum(["openai", "anthropic", "gemini", "deepseek", "moonshot", "zhipu", "qwen", "siliconflow", "ollama", "custom"]),
   model: z.string(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
@@ -26,7 +26,7 @@ const providerSchema = z.object({
 
 const configSchema = z.object({
   language: z.enum(["zh", "en"]),
-  defaultProvider: z.enum(["openai", "anthropic", "gemini", "ollama", "custom"]),
+  defaultProvider: z.enum(["openai", "anthropic", "gemini", "deepseek", "moonshot", "zhipu", "qwen", "siliconflow", "ollama", "custom"]),
   providers: z.record(z.string(), providerSchema).optional(),
   budgetUsd: z.number().min(0),
   speedMode: z.boolean(),
@@ -36,11 +36,16 @@ const configSchema = z.object({
 
 export const DEFAULT_CONFIG: CloverConfig = {
   language: "zh",
-  defaultProvider: "openai",
+  defaultProvider: "deepseek",
   providers: {
     openai: { id: "openai", model: "gpt-4o-mini", apiKey: undefined, enabled: false },
     anthropic: { id: "anthropic", model: "claude-sonnet-4-5", apiKey: undefined, enabled: false },
     gemini: { id: "gemini", model: "gemini-2.5-flash", apiKey: undefined, enabled: false },
+    deepseek: { id: "deepseek", model: "deepseek-chat", apiKey: undefined, baseUrl: "https://api.deepseek.com/v1", enabled: true },
+    moonshot: { id: "moonshot", model: "moonshot-v1-8k", apiKey: undefined, baseUrl: "https://api.moonshot.cn/v1", enabled: false },
+    zhipu: { id: "zhipu", model: "glm-4-flash", apiKey: undefined, baseUrl: "https://open.bigmodel.cn/api/paas/v4", enabled: false },
+    qwen: { id: "qwen", model: "qwen-plus", apiKey: undefined, baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", enabled: false },
+    siliconflow: { id: "siliconflow", model: "Qwen/Qwen2.5-7B-Instruct", apiKey: undefined, baseUrl: "https://api.siliconflow.cn/v1", enabled: false },
     ollama: { id: "ollama", model: "qwen2.5:7b", baseUrl: "http://localhost:11434", enabled: false },
     custom: { id: "custom", model: "gpt-4o-mini", apiKey: undefined, baseUrl: undefined, enabled: false },
   },

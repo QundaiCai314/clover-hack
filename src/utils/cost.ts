@@ -24,6 +24,16 @@ export const PRICING: Record<string, ModelPrice> = {
   // Google
   "gemini-2.5-pro": { inputPerM: 1.25, outputPerM: 10 },
   "gemini-2.5-flash": { inputPerM: 0.3, outputPerM: 2.5 },
+  // 国内（美元 / 百万 token，近似价，仅用于预算提醒）
+  "deepseek-chat": { inputPerM: 0.28, outputPerM: 0.42 },
+  "deepseek-reasoner": { inputPerM: 0.55, outputPerM: 2.19 },
+  "moonshot-v1-8k": { inputPerM: 0.6, outputPerM: 2 },
+  "glm-4-flash": { inputPerM: 0, outputPerM: 0 },
+  "glm-4-plus": { inputPerM: 0.7, outputPerM: 1.4 },
+  "qwen-plus": { inputPerM: 0.4, outputPerM: 1.2 },
+  "qwen-max": { inputPerM: 2.4, outputPerM: 9.6 },
+  "Qwen/Qwen2.5-7B-Instruct": { inputPerM: 0, outputPerM: 0 },
+  "deepseek-ai/DeepSeek-V3": { inputPerM: 0.28, outputPerM: 0.42 },
   // 本地/兼容接口默认按 0 计
   "ollama": { inputPerM: 0, outputPerM: 0 },
 };

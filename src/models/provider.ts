@@ -661,6 +661,12 @@ export function createProvider(config: ProviderConfig): ModelProvider {
   switch (config.id) {
     case "openai":
       return new OpenAICompatibleProvider(config);
+    case "deepseek":
+    case "moonshot":
+    case "zhipu":
+    case "qwen":
+    case "siliconflow":
+      return new OpenAICompatibleProvider(config);
     case "custom":
       return new OpenAICompatibleProvider(config);
     case "anthropic":

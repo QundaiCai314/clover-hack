@@ -216,9 +216,14 @@ export async function cmdCheck(): Promise<void> {
 
 // ---------- 配置 ----------
 
-const PROVIDER_IDS = ["openai", "anthropic", "gemini", "ollama", "custom"] as const;
+const PROVIDER_IDS = ["deepseek", "qwen", "moonshot", "zhipu", "siliconflow", "openai", "anthropic", "gemini", "ollama", "custom"] as const;
 
 const DEFAULT_MODELS: Record<string, string> = {
+  deepseek: "deepseek-chat",
+  qwen: "qwen-plus",
+  moonshot: "moonshot-v1-8k",
+  zhipu: "glm-4-flash",
+  siliconflow: "Qwen/Qwen2.5-7B-Instruct",
   openai: "gpt-4o-mini",
   anthropic: "claude-sonnet-4-5",
   gemini: "gemini-2.5-flash",
@@ -226,17 +231,26 @@ const DEFAULT_MODELS: Record<string, string> = {
   custom: "gpt-4o-mini",
 };
 
+const DEFAULT_BASE_URLS: Record<string, string> = {
+  deepseek: "https://api.deepseek.com/v1",
+  qwen: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  moonshot: "https://api.moonshot.cn/v1",
+  zhipu: "https://open.bigmodel.cn/api/paas/v4",
+  siliconflow: "https://api.siliconflow.cn/v1",
+};
+
 export async function cmdConfig(): Promise<void> {
   const config = loadGlobalConfig();
   banner("Clover 配置向导（直接回车使用当前值）");
   const lang = await askInput("界面语言（zh / en）", config.language);
   config.language = lang === "en" ? "en" : "zh";
+  note("国内推荐：deepseek / qwen / zhipu（glm-4-flash 免费）/ siliconflow（有免费模型）");
   const pick = (await askInput("默认模型 Provider（" + PROVIDER_IDS.join(" / ") + "）", config.defaultProvider)).toLowerCase();
   if ((PROVIDER_IDS as readonly string[]).includes(pick)) {
     config.defaultProvider = pick as ProviderId;
   }
   for (const id of PROVIDER_IDS) {
-    const provider = config.providers[id] ?? { id, model: DEFAULT_MODELS[id] ?? "", apiKey: undefined, baseUrl: undefined, enabled: false };
+    const provider = config.providers[id] ?? { id, model: DEFAULT_MODELS[id] ?? "", apiKey: undefined, baseUrl: DEFAULT_BASE_URLS[id] ?? undefined, enabled: false };
     const enabled = await askYesNo("启用 " + id + " ？");
     provider.enabled = enabled;
     if (enabled) {

@@ -27,6 +27,19 @@ clover init          # 可选：手动初始化，设置赛题、截止时间等
 ```
 
 > npm 包名 `clover` 若已被占用，本包使用 `clover-hackathon`，命令名保持 `clover`。
+## 国内模型服务商
+
+面向国内用户内置以下 OpenAI 兼容服务商，`clover config` 向导可直接选择：
+
+| 服务商 | Provider | 默认模型 | Base URL | 备注 |
+| --- | --- | --- | --- | --- |
+| DeepSeek | deepseek | deepseek-chat | https://api.deepseek.com/v1 | 便宜，默认推荐 |
+| 通义千问 | qwen | qwen-plus | https://dashscope.aliyuncs.com/compatible-mode/v1 | 阿里云百炼 |
+| Kimi | moonshot | moonshot-v1-8k | https://api.moonshot.cn/v1 | 月之暗面 |
+| 智谱 GLM | zhipu | glm-4-flash | https://open.bigmodel.cn/api/paas/v4 | glm-4-flash 免费 |
+| 硅基流动 | siliconflow | Qwen/Qwen2.5-7B-Instruct | https://api.siliconflow.cn/v1 | 有免费模型 |
+
+拿到 API Key 后运行 `clover config`，选择对应 Provider 填入 Key 即可；也可设置环境变量 `CLOVER_<大写Provider>_KEY`（如 `CLOVER_DEEPSEEK_KEY`）。
 
 ## 命令
 

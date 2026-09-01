@@ -1,6 +1,6 @@
 // Clover 共享类型定义
 
-export type ProviderId = "openai" | "anthropic" | "gemini" | "ollama" | "custom";
+export type ProviderId = "openai" | "anthropic" | "gemini" | "deepseek" | "moonshot" | "zhipu" | "qwen" | "siliconflow" | "ollama" | "custom";
 
 export type ChatRole = "system" | "user" | "assistant" | "tool";
 
