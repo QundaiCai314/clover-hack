@@ -93,6 +93,8 @@ export interface CloverConfig {
   backupIntervalMinutes: number;
   /** 定时备份开关 */
   autoBackup: boolean;
+  /** 已信任的工作区目录列表（首次进入时安全确认后记住） */
+  trustedFolders: string[];
 }
 
 export interface HackathonMeta {

@@ -4,6 +4,8 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { loadGlobalConfig, isTrustedFolder, trustFolder } from "../utils/config.js";
+import { confirmWorkspaceTrust } from "../utils/input.js";
 
 // 从包根 package.json 读取版本号（src 与 dist 深度相同：../../package.json）
 function cliVersion(): string {
@@ -13,6 +15,18 @@ function cliVersion(): string {
   } catch {
     return "0.0.0";
   }
+}
+
+/** 工作区安全确认：未信任目录先弹 Claude Code 式确认框；拒绝则退出 */
+async function guardWorkspace(): Promise<void> {
+  if (isTrustedFolder(process.cwd())) return;
+  const config = loadGlobalConfig();
+  const ok = await confirmWorkspaceTrust(process.cwd(), config.language ?? "zh");
+  if (!ok) {
+    console.log("已取消，未进入工作区。");
+    process.exit(0);
+  }
+  trustFolder(process.cwd());
 }
 
 import { cmdInit, cmdNew, cmdArchiveList, cmdConfig, cmdModels, cmdSessions, cmdStatus, cmdCheck, cmdTemplate, cmdAnalyze, cmdIdeate, cmdEvaluate, cmdPlan, cmdPitch, cmdReview, cmdStart } from "./commands.js";
@@ -30,6 +44,7 @@ export async function runCli(): Promise<void> {
     .description("在当前目录初始化比赛项目")
     .action(async () => {
       try {
+        await guardWorkspace();
         await cmdInit();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -42,6 +57,7 @@ export async function runCli(): Promise<void> {
     .description("创建新比赛档案目录")
     .action(async (name: string) => {
       try {
+        await guardWorkspace();
         await cmdNew(name);
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -89,8 +105,9 @@ export async function runCli(): Promise<void> {
   program
     .command("status")
     .description("比赛状态：倒计时/预算/模式")
-    .action(() => {
+    .action(async () => {
       try {
+        await guardWorkspace();
         cmdStatus();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -103,6 +120,7 @@ export async function runCli(): Promise<void> {
     .description("解析赛题（文件路径 / URL / 直接粘贴文本）")
     .action(async (source?: string) => {
       try {
+        await guardWorkspace();
         await cmdAnalyze(source);
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -115,6 +133,7 @@ export async function runCli(): Promise<void> {
     .description("基于赛题生成项目点子")
     .action(async () => {
       try {
+        await guardWorkspace();
         await cmdIdeate();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -127,6 +146,7 @@ export async function runCli(): Promise<void> {
     .description("点子评估：合理性 + 市场分析（蓝海/红海）")
     .action(async (idea?: string) => {
       try {
+        await guardWorkspace();
         await cmdEvaluate(idea);
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -139,6 +159,7 @@ export async function runCli(): Promise<void> {
     .description("MVP 规划")
     .action(async () => {
       try {
+        await guardWorkspace();
         await cmdPlan();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -151,6 +172,7 @@ export async function runCli(): Promise<void> {
     .description("生成 Pitch 演讲稿")
     .action(async () => {
       try {
+        await guardWorkspace();
         await cmdPitch();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -161,8 +183,9 @@ export async function runCli(): Promise<void> {
   program
     .command("template <type>")
     .description("生成模板文档：readme / pitch / submission / timeline")
-    .action((type: string) => {
+    .action(async (type: string) => {
       try {
+        await guardWorkspace();
         cmdTemplate(type);
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -175,6 +198,7 @@ export async function runCli(): Promise<void> {
     .description("提交前检查清单")
     .action(async () => {
       try {
+        await guardWorkspace();
         await cmdCheck();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -187,6 +211,7 @@ export async function runCli(): Promise<void> {
     .description("赛后复盘报告")
     .action(async () => {
       try {
+        await guardWorkspace();
         await cmdReview();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));
@@ -211,6 +236,7 @@ export async function runCli(): Promise<void> {
     .description("进入 Clover 对话模式")
     .action(async () => {
       try {
+        await guardWorkspace();
         await cmdStart();
       } catch (err) {
         console.error("✖ " + (err instanceof Error ? err.message : err));

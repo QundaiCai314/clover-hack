@@ -1,4 +1,4 @@
-﻿// 配置系统：全局配置（~/.clover/config.json）+ 项目状态（.clover/）
+// 配置系统：全局配置（~/.clover/config.json）+ 项目状态（.clover/）
 // 支持 .env 注入 API Key（CLOVER_OPENAI_KEY 等），向导生成 + 手动编辑双通道。
 
 import fs from "node:fs";
@@ -32,6 +32,7 @@ const configSchema = z.object({
   speedMode: z.boolean(),
   backupIntervalMinutes: z.number().min(1),
   autoBackup: z.boolean(),
+  trustedFolders: z.array(z.string()).optional(),
 });
 
 export const DEFAULT_CONFIG: CloverConfig = {
@@ -53,6 +54,7 @@ export const DEFAULT_CONFIG: CloverConfig = {
   speedMode: false,
   backupIntervalMinutes: 30,
   autoBackup: true,
+  trustedFolders: [],
 };
 
 /** 读取 JSON，兼容 UTF-8 BOM；文件不存在返回 null */
@@ -105,4 +107,29 @@ export function requireProject(): CloverConfig {
     throw new Error("当前目录不是 Clover 比赛项目，请先运行 clover init");
   }
   return loadGlobalConfig();
+}
+
+// ---------- 工作区信任 ----------
+
+/** 规范化目录路径用于信任比对（Windows 忽略大小写，去掉结尾分隔符） */
+export function normalizeFolder(folder: string): string {
+  const resolved = path.resolve(folder);
+  const trimmed = resolved.replace(/[\\/]+$/, "");
+  return process.platform === "win32" ? trimmed.toLowerCase() : trimmed;
+}
+
+/** 目录是否已被用户信任（避免每次进入都弹确认） */
+export function isTrustedFolder(folder: string): boolean {
+  const config = loadGlobalConfig();
+  const target = normalizeFolder(folder);
+  return (config.trustedFolders ?? []).some((f) => normalizeFolder(f) === target);
+}
+
+/** 记住信任的目录（幂等，重复信任不会产生重复项） */
+export function trustFolder(folder: string): void {
+  const loaded = loadGlobalConfig();
+  const target = normalizeFolder(folder);
+  const list = (loaded.trustedFolders ?? []).filter((f) => normalizeFolder(f) !== target);
+  list.push(target);
+  saveGlobalConfig({ ...loaded, trustedFolders: list });
 }
