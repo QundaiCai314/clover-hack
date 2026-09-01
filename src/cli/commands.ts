@@ -14,7 +14,7 @@ import { loadGlobalConfig, saveGlobalConfig, GLOBAL_CONFIG_PATH, ARCHIVE_PATH, P
 import { formatUsd } from "../utils/cost.js";
 import { banner, info, note, warn, error } from "../utils/logger.js";
 import { findPet, renderPet, randomWelcomePet } from "../utils/pet.js";
-import { buildStatusBar, buildWelcomePanel } from "../utils/panel.js";
+import { buildStatusBar, buildShortcutsPanel, buildWelcomePanel } from "../utils/panel.js";
 import { searchWeb } from "../core/tools.js";
 import type { ArchiveEntry, CloverConfig, HackathonMeta, IdeaRecord, ImageBlock, ProviderConfig, ProviderId, ToolCallRequest, ToolResult } from "../types.js";
 import { buildAnalyzePrompt, buildIdeatePrompt, buildEvaluatePrompt, buildMvpPrompt, buildPitchPrompt, buildRetrospectivePrompt, runSubmissionChecks } from "../hackathon/workflows.js";
@@ -529,6 +529,13 @@ export async function cmdStart(): Promise<void> {
         process.stdout.write("\n");
       }
     };
+    // Esc / Ctrl+C 中断当前生成（readline 在 TTY 下本身处于 raw 模式，直接监听字节即可）
+    const controller = new AbortController();
+    const onEscData = (chunk: Buffer) => {
+      const key = chunk.toString();
+      if (key === "\u001b" || key === "\u0003") controller.abort();
+    };
+    process.stdin.on("data", onEscData);
     try {
       startThinking();
       const answer = await agent.turn(text, images, {
@@ -540,6 +547,7 @@ export async function cmdStart(): Promise<void> {
           begin();
           console.log(toolCard(call, result));
         },
+        signal: controller.signal,
       });
       if (!started) {
         stopThinking();
@@ -550,7 +558,13 @@ export async function cmdStart(): Promise<void> {
     } catch (err) {
       if (!started) stopThinking();
       process.stdout.write("\n");
+      if (controller.signal.aborted) {
+        note("已中断生成");
+        return;
+      }
       throw err;
+    } finally {
+      process.stdin.removeListener("data", onEscData);
     }
   };
 
@@ -579,19 +593,44 @@ export async function cmdStart(): Promise<void> {
     language: config.language ?? "zh",
   };
   console.log("\n" + buildWelcomePanel(welcomeInfo).join("\n") + "\n");
-  note(buildStatusBar(welcomeInfo));
+  const makeStatusBar = (): string =>
+    buildStatusBar({
+      version: cliVersion(),
+      providerLabel: provider.config.id + " / " + provider.config.model,
+      budgetLabel: formatUsd(config.budgetUsd),
+      speedMode: config.speedMode,
+      folder: process.cwd(),
+      sessionLabel: "会话 " + session.id.slice(0, 8),
+      sessionIdShort: session.id.slice(0, 8),
+      pet: welcomeInfo.pet,
+      language: config.language ?? "zh",
+    });
+  note(makeStatusBar());
 
   for (;;) {
-    const input = (await askInput("clover>")).trim();
+    const input = (await askInput("> ")).trim();
     if (!input) continue;
+    if (input === "?") {
+      console.log("\n" + buildShortcutsPanel(config.language ?? "zh").join("\n") + "\n");
+      continue;
+    }
     if (input === "/quit" || input === "exit" || input === "quit") break;
     if (input === "/status") {
       cmdStatus();
+      note(makeStatusBar());
       continue;
     }
     if (input === "/cost") {
       const u = agent.usage();
       info("预算： " + formatUsd(config.budgetUsd) + " · 累计： " + formatUsd(u.costUsd) + " · tokens： " + u.inputTokens + " in / " + u.outputTokens + " out");
+      note(makeStatusBar());
+      continue;
+    }
+    if (input === "/mode") {
+      config.speedMode = !config.speedMode;
+      saveGlobalConfig(config);
+      info(config.speedMode ? "▶ 已切换为竞速模式：命令自动执行" : "⏸ 已切换为默认确认模式：命令需确认");
+      note(makeStatusBar());
       continue;
     }
     if (input === "/clear") {
@@ -599,19 +638,21 @@ export async function cmdStart(): Promise<void> {
       agent = new Agent({ provider, session, budgetUsd: config.budgetUsd, permissions });
       showPet("happy");
       note("已开启新会话");
+      note(makeStatusBar());
       continue;
     }
     if (input === "/compact") {
       try {
         const summary = await agent.compact();
         note("已压缩对话历史：摘要 " + summary.length + " 字");
+        note(makeStatusBar());
       } catch (err) {
         error("压缩失败：" + (err instanceof Error ? err.message : err));
       }
       continue;
     }
     if (input === "/help") {
-      note("命令：/quit 退出 · /status 状态 · /cost 花费 · /clear 新会话 · /compact 压缩历史 · /img <图片> [问题] 发送图片 · /help 帮助");
+      console.log("\n" + buildShortcutsPanel(config.language ?? "zh").join("\n") + "\n");
       continue;
     }
     if (input.startsWith("/img ")) {
@@ -622,6 +663,7 @@ export async function cmdStart(): Promise<void> {
       }
       try {
         await streamAnswer(parsed.text || "请描述这张图片", parsed.images);
+        note(makeStatusBar());
         } catch (err) {
         error(err instanceof Error ? err.message : String(err));
       }
@@ -631,6 +673,7 @@ export async function cmdStart(): Promise<void> {
     if (!parsed.text && parsed.images.length === 0) continue;
     try {
       await streamAnswer(parsed.text || "请描述这张图片", parsed.images);
+      note(makeStatusBar());
     } catch (err) {
       error(err instanceof Error ? err.message : String(err));
     }

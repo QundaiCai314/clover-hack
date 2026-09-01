@@ -38,6 +38,8 @@ export interface ChatOptions {
   tools?: ToolDefinition[];
   /** 流式回调：模型文本增量到达时调用 */
   onText?: (delta: string) => void;
+  /** 中断信号：用户按 Esc 时中止本轮生成 */
+  signal?: AbortSignal;
 }
 
 export interface ChatResult {

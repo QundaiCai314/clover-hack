@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildWelcomePanel, buildStatusBar, cellWidth, stringWidth, truncateMiddle, padCenter } from "../src/utils/panel.ts";
+import { buildWelcomePanel, buildStatusBar, buildShortcutsPanel, cellWidth, stringWidth, truncateMiddle, padCenter } from "../src/utils/panel.ts";
 import { findPet } from "../src/utils/pet.ts";
 
 const info = {
@@ -50,6 +50,21 @@ test("欢迎屏：右栏包含新手提示与更新内容", () => {
   assert.ok(lines.includes("/compact 压缩长对话"));
   assert.ok(lines.includes("更新内容"));
   assert.ok(lines.includes("v0.1.5 启动欢迎屏"));
+});
+
+test("快捷键面板：等宽闭合、包含 /mode 与 ?", () => {
+  const lines = buildShortcutsPanel("zh");
+  const width = stringWidth(lines[0]);
+  for (const line of lines) assert.equal(stringWidth(line), width);
+  assert.ok(lines[0].startsWith("╭"));
+  assert.ok(lines[lines.length - 1].startsWith("╰"));
+  const joined = lines.join("\n");
+  assert.ok(joined.includes("?"), "包含 ? 帮助");
+  assert.ok(joined.includes("/mode"));
+  assert.ok(joined.includes("/compact"));
+  assert.ok(joined.includes("压缩对话历史"));
+  const en = buildShortcutsPanel("en");
+  assert.ok(en.join("\n").includes("Shortcuts & Commands"));
 });
 
 test("状态栏包含模式/预算/模型/会话/目录/帮助", () => {

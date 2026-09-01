@@ -222,7 +222,7 @@ class OpenAICompatibleProvider implements ModelProvider {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError(this.config.id + " 请求失败：" + res.status + " " + (await res.text()));
     const data = (await res.json()) as {
       choices: Array<{ message: { content?: string | null; tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: unknown } }> } }>;
@@ -253,7 +253,7 @@ class OpenAICompatibleProvider implements ModelProvider {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + apiKey },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError(this.config.id + " 请求失败：" + res.status + " " + (await res.text()));
     let text = "";
     let inputTokens = 0;
@@ -366,7 +366,7 @@ class AnthropicProvider implements ModelProvider {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError("anthropic 请求失败：" + res.status + " " + (await res.text()));
     const data = (await res.json()) as {
       content: Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
@@ -397,7 +397,7 @@ class AnthropicProvider implements ModelProvider {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError("anthropic 请求失败：" + res.status + " " + (await res.text()));
     let text = "";
     let inputTokens = 0;
@@ -480,7 +480,7 @@ class GeminiProvider implements ModelProvider {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError("gemini 请求失败：" + res.status + " " + (await res.text()));
     const data = (await res.json()) as {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string; functionCall?: { name?: string; args?: unknown } }> } }>;
@@ -526,7 +526,7 @@ class GeminiProvider implements ModelProvider {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError("gemini 请求失败：" + res.status + " " + (await res.text()));
     let text = "";
     let inputTokens = 0;
@@ -602,7 +602,7 @@ class OllamaProvider implements ModelProvider {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError("ollama 请求失败：" + res.status + " " + (await res.text()));
     const data = (await res.json()) as {
       message?: { content?: string; tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: unknown } }> };
@@ -630,7 +630,7 @@ class OllamaProvider implements ModelProvider {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+      signal: options?.signal,    });
     if (!res.ok) throw new CloverError("ollama 请求失败：" + res.status + " " + (await res.text()));
     let text = "";
     let inputTokens = 0;

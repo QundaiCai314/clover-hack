@@ -152,6 +152,46 @@ export function buildWelcomePanel(info: WelcomeInfo): string[] {
   return lines;
 }
 
+/** 快捷键/命令速查面板（输入 ? 或 /help 显示） */
+export function buildShortcutsPanel(language: "zh" | "en"): string[] {
+  const rows: Array<[string, string]> =
+    language === "zh"
+      ? [
+          ["?", "显示本面板"],
+          ["/status", "比赛状态 / 倒计时"],
+          ["/cost", "本次与累计花费"],
+          ["/mode", "切换 竞速 / 默认确认"],
+          ["/clear", "开启新会话"],
+          ["/compact", "压缩对话历史"],
+          ["/img <图片>", "发送图片 [问题]"],
+          ["/help", "命令说明"],
+          ["/quit", "退出 Clover"],
+        ]
+      : [
+          ["?", "show this panel"],
+          ["/status", "hackathon status / countdown"],
+          ["/cost", "session & total spend"],
+          ["/mode", "toggle speed / manual mode"],
+          ["/clear", "start a new session"],
+          ["/compact", "compress chat history"],
+          ["/img <image>", "send image [question]"],
+          ["/help", "command reference"],
+          ["/quit", "exit Clover"],
+        ];
+  const col1 = Math.max(...rows.map((r) => stringWidth(r[0]) + 1));
+  const col2 = Math.max(...rows.map((r) => stringWidth(r[1]) + 2));
+  const inner = col1 + col2;
+  const total = inner + 4; // 两侧边框 + 两处空格
+  const title = language === "zh" ? "快捷键与命令" : "Shortcuts & Commands";
+  const titleFill = "─".repeat(Math.max(0, total - 7 - stringWidth(title)));
+  const lines: string[] = ["╭─── " + title + " " + titleFill + "╮"];
+  for (const [cmd, desc] of rows) {
+    lines.push("│ " + padTo(cmd, col1) + " " + padTo(desc, col2) + "│");
+  }
+  lines.push("╰" + "─".repeat(total - 2) + "╯");
+  return lines;
+}
+
 /** 状态栏：模式 · 预算 · 模型 · 会话 · 目录 · 帮助 */
 export function buildStatusBar(info: WelcomeInfo): string {
   const zh = info.language === "zh";

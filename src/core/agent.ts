@@ -41,6 +41,8 @@ export interface CommandApprover {
 export interface AgentUI {
   onText?: (delta: string) => void;
   onToolResult?: (call: ToolCallRequest, result: ToolResult) => void;
+  /** 中断信号（Esc 中止生成） */
+  signal?: AbortSignal;
 }
 
 export interface AgentOptions {
@@ -75,7 +77,7 @@ export class Agent {
     let finalText = "";
     let turnCost = 0;
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const result = await provider.chat(this.messages, { tools: TOOLS, onText: ui?.onText });
+      const result = await provider.chat(this.messages, { tools: TOOLS, onText: ui?.onText, signal: ui?.signal });
       turnCost += result.estimatedCostUsd;
       this.account(session, result);
 
