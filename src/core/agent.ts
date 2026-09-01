@@ -15,6 +15,22 @@ const SYSTEM_PROMPT = [
 ].join("\n");
 
 const MAX_TOOL_ROUNDS = 10;
+/** 上下文估算阈值（token）：超过后自动压缩历史 */
+const COMPACT_THRESHOLD_TOKENS = 60_000;
+/** 两次自动压缩的最小间隔（毫秒） */
+const COMPACT_MIN_INTERVAL_MS = 3 * 60_000;
+
+/** 粗略估算当前上下文 token 数（1 token ≈ 4 字符；图片按 base64 体积折算） */
+function estimateContextTokens(messages: ChatMessage[]): number {
+  let chars = 0;
+  for (const m of messages) {
+    chars += m.content.length;
+    for (const tc of m.toolCalls ?? []) chars += JSON.stringify(tc.args).length;
+    for (const img of m.images ?? []) chars += Math.ceil(img.dataBase64.length / 3);
+  }
+  return Math.ceil(chars / 4);
+}
+
 
 /** 命令审批器：执行 run_command 前需要用户确认 */
 export interface CommandApprover {
@@ -38,6 +54,7 @@ export interface AgentOptions {
 
 export class Agent {
   private readonly messages: ChatMessage[];
+  private lastCompactedAt = 0;
 
   constructor(private readonly options: AgentOptions) {
     this.messages = [
@@ -54,6 +71,7 @@ export class Agent {
     appendMessage(session, userMessage);
     this.messages.push(userMessage);
 
+    await this.maybeCompact();
     let finalText = "";
     let turnCost = 0;
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -138,6 +156,47 @@ export class Agent {
     };
     return { ...u, costUsd: this.options.session.totalCostUsd };
   }
+  /** 手动压缩对话历史（/compact 命令） */
+  async compact(): Promise<string> {
+    if (this.messages.filter((m) => m.role !== "system").length < 4) {
+      throw new Error("对话太短，无需压缩");
+    }
+    return this.doCompact();
+  }
+
+  /** 上下文接近上限时自动压缩一次（失败不影响本轮对话） */
+  private async maybeCompact(): Promise<void> {
+    if (Date.now() - this.lastCompactedAt < COMPACT_MIN_INTERVAL_MS) return;
+    if (estimateContextTokens(this.messages) < COMPACT_THRESHOLD_TOKENS) return;
+    try {
+      await this.doCompact();
+    } catch (err) {
+      warn("自动压缩失败：" + (err instanceof Error ? err.message : err));
+    }
+  }
+
+  /** 把当前对话历史压缩成摘要，替换为一条 user 摘要消息 */
+  private async doCompact(): Promise<string> {
+    const { provider, session } = this.options;
+    const history = this.messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({ role: m.role, content: m.content, name: m.name, toolCallId: m.toolCallId, toolCalls: m.toolCalls }));
+    note("上下文接近上限，正在压缩历史…");
+    const prompt =
+      "把下面的对话历史压缩成结构化中文摘要，必须保留：用户目标、赛题与要求、已完成与未完成事项、关键文件路径与代码要点、用户的偏好与约束。不要遗漏技术细节。\n\n" +
+      JSON.stringify(history);
+    const result = await provider.chat([{ role: "user", content: prompt }]);
+    this.account(session, result);
+    const system = this.messages.find((m) => m.role === "system");
+    this.messages.length = 0;
+    if (system) this.messages.push(system);
+    this.messages.push({ role: "user", content: "【历史对话摘要（已压缩）】\n" + result.content });
+    session.messages = this.messages.filter((m) => m.role !== "system");
+    saveSession(session);
+    this.lastCompactedAt = Date.now();
+    return result.content;
+  }
+
 }
 
 function summarize(toolResult: ToolResult): string {

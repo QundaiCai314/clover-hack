@@ -493,15 +493,34 @@ export async function cmdStart(): Promise<void> {
   const permissions = new PermissionManager(config);
   let agent = new Agent({ provider, session, budgetUsd: config.budgetUsd, permissions });
   /** 流式回答：思考指示 → 逐字输出 → 工具卡片 */
+
   const streamAnswer = async (text: string, images?: ImageBlock[]): Promise<void> => {
     let started = false;
+    let spinnerTimer: NodeJS.Timeout | null = null;
+    let spin = 0;
+    const startThinking = () => {
+      process.stdout.write("🍀 思考中 /");
+      spinnerTimer = setInterval(() => {
+        spin = (spin + 1) % 4;
+        process.stdout.write("\r🍀 思考中 " + ["/", "-", "\\", "|"][spin]);
+      }, 120);
+    };
+    const stopThinking = () => {
+      if (spinnerTimer) {
+        clearInterval(spinnerTimer);
+        spinnerTimer = null;
+      }
+      process.stdout.write("\r" + " ".repeat(18) + "\r");
+    };
     const begin = () => {
       if (!started) {
         started = true;
+        stopThinking();
         process.stdout.write("\n");
       }
     };
     try {
+      startThinking();
       const answer = await agent.turn(text, images, {
         onText: (delta) => {
           begin();
@@ -512,13 +531,19 @@ export async function cmdStart(): Promise<void> {
           console.log(toolCard(call, result));
         },
       });
-      if (!started) process.stdout.write("\n" + answer + "\n");
-      else process.stdout.write("\n");
+      if (!started) {
+        stopThinking();
+        process.stdout.write("\n" + answer + "\n");
+      } else {
+        process.stdout.write("\n");
+      }
     } catch (err) {
-      if (!started) process.stdout.write("\n");
+      if (!started) stopThinking();
+      process.stdout.write("\n");
       throw err;
     }
   };
+
 
 
   let backupTimer: NodeJS.Timeout | null = null;
@@ -557,8 +582,17 @@ export async function cmdStart(): Promise<void> {
       note("已开启新会话");
       continue;
     }
+    if (input === "/compact") {
+      try {
+        const summary = await agent.compact();
+        note("已压缩对话历史：摘要 " + summary.length + " 字");
+      } catch (err) {
+        error("压缩失败：" + (err instanceof Error ? err.message : err));
+      }
+      continue;
+    }
     if (input === "/help") {
-      note("命令：/quit 退出 · /status 状态 · /cost 花费 · /clear 新会话 · /img <图片> [问题] 发送图片 · /help 帮助");
+      note("命令：/quit 退出 · /status 状态 · /cost 花费 · /clear 新会话 · /compact 压缩历史 · /img <图片> [问题] 发送图片 · /help 帮助");
       continue;
     }
     if (input.startsWith("/img ")) {
