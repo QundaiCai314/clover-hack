@@ -1,6 +1,6 @@
 {
   "name": "clover-hackathon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Clover（三叶草）— 专为黑客松比赛设计的命令行 AI Agent",
   "keywords": [
     "hackathon",
