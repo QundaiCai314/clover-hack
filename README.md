@@ -1,4 +1,4 @@
-﻿# 🍀 Clover（三叶草）
+# 🍀 Clover（三叶草）
 
 **专为黑客松比赛设计的命令行 AI Agent** —— 从读到赛题到提交作品的每一步都有人帮。
 
@@ -20,13 +20,13 @@ Clover 以 Claude Code 风格的终端交互为体验基准，具备完整通用
 ## 快速开始
 
 ```bash
-npm install -g clover-hack
+npm install -g clover-hackathon
 clover config        # 配置向导：模型、API Key、语言、预算
 clover init          # 在当前目录初始化比赛
 clover start         # 开始和 Clover 对话
 ```
 
-> npm 包名 `clover` 若已被占用，本包使用 `clover-hack`，命令名保持 `clover`。
+> npm 包名 `clover` 若已被占用，本包使用 `clover-hackathon`，命令名保持 `clover`。
 
 ## 命令
 

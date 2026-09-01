@@ -1,4 +1,4 @@
-﻿# Clover（三叶草）— 黑客松比赛搭档 CLI · PRD
+# Clover（三叶草）— 黑客松比赛搭档 CLI · PRD
 
 > 版本：v0.1（需求确认稿）
 > 日期：2026-09-01
@@ -106,7 +106,7 @@ clover archive list             # 历史比赛档案
 ### 7.7 平台与分发
 
 - 主开发/使用平台：Windows；发布目标：npm 跨平台（Win/macOS/Linux）
-- 分发：`npm install -g clover`（npm 包名若被占用则用 `clover-hack`）
+- 分发：`npm install -g clover`（npm 包名若被占用则用 `clover-hackathon`）
 - 命令行名：`clover`（三叶草，幸运属性）
 
 ## 8. 技术方案
