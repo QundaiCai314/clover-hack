@@ -36,6 +36,8 @@ export interface ToolCallRequest {
 export interface ChatOptions {
   /** 本轮可用的工具定义（各家会转换为自己的 function calling 协议） */
   tools?: ToolDefinition[];
+  /** 流式回调：模型文本增量到达时调用 */
+  onText?: (delta: string) => void;
 }
 
 export interface ChatResult {

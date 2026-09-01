@@ -21,11 +21,19 @@ export interface CommandApprover {
   approve(command: string): Promise<boolean>;
 }
 
+/** 会话界面回调：流式文本与工具执行结果展示 */
+export interface AgentUI {
+  onText?: (delta: string) => void;
+  onToolResult?: (call: ToolCallRequest, result: ToolResult) => void;
+}
+
 export interface AgentOptions {
   provider: ModelProvider;
   session: SessionRecord;
   budgetUsd: number;
   permissions?: CommandApprover;
+  /** 界面回调（流式显示） */
+  ui?: AgentUI;
 }
 
 export class Agent {
@@ -39,7 +47,7 @@ export class Agent {
   }
 
   /** 发送一轮对话：模型可多次调用工具，直至给出最终回答 */
-  async turn(userInput: string, images?: ImageBlock[]): Promise<string> {
+  async turn(userInput: string, images?: ImageBlock[], ui?: AgentUI): Promise<string> {
     const { provider, session, budgetUsd, permissions } = this.options;
     const userMessage: ChatMessage = { role: "user", content: userInput };
     if (images && images.length > 0) userMessage.images = images;
@@ -49,7 +57,7 @@ export class Agent {
     let finalText = "";
     let turnCost = 0;
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const result = await provider.chat(this.messages, { tools: TOOLS });
+      const result = await provider.chat(this.messages, { tools: TOOLS, onText: ui?.onText });
       turnCost += result.estimatedCostUsd;
       this.account(session, result);
 
@@ -67,7 +75,11 @@ export class Agent {
 
       for (const call of assistantMessage.toolCalls) {
         const toolResult = await this.executeTool(call, permissions);
-        note("🔧 " + call.name + " → " + summarize(toolResult));
+        if (ui) {
+          ui.onToolResult?.(call, toolResult);
+        } else {
+          note("🔧 " + call.name + " → " + summarize(toolResult));
+        }
         const toolMessage: ChatMessage = {
           role: "tool",
           toolCallId: call.id,

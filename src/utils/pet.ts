@@ -74,6 +74,13 @@ export function randomPet(): PetArt {
   return PETS[Math.floor(Math.random() * PETS.length)] ?? PETS[0];
 }
 
+/** 开场白姿态：只从积极姿态里随机，避免开场就“出问题” */
+export function randomWelcomePet(): PetArt {
+  const welcome = ["idle", "happy", "sleepy", "think"];
+  const name = welcome[Math.floor(Math.random() * welcome.length)] ?? "idle";
+  return findPet(name) ?? PETS[0];
+}
+
 export function findPet(name: string): PetArt | undefined {
   return PETS.find((p) => p.name === name);
 }

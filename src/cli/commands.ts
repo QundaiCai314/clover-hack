@@ -13,9 +13,9 @@ import { createSession, latestSession, listSessions, loadSession } from "../core
 import { loadGlobalConfig, saveGlobalConfig, GLOBAL_CONFIG_PATH, ARCHIVE_PATH, PROJECT_CONFIG_PATH, isProject, readJsonFile, writeJsonFile } from "../utils/config.js";
 import { formatUsd } from "../utils/cost.js";
 import { banner, info, note, warn, error } from "../utils/logger.js";
-import { findPet, randomPet, renderPet } from "../utils/pet.js";
+import { findPet, renderPet, randomWelcomePet } from "../utils/pet.js";
 import { searchWeb } from "../core/tools.js";
-import type { ArchiveEntry, CloverConfig, HackathonMeta, IdeaRecord, ImageBlock, ProviderConfig, ProviderId } from "../types.js";
+import type { ArchiveEntry, CloverConfig, HackathonMeta, IdeaRecord, ImageBlock, ProviderConfig, ProviderId, ToolCallRequest, ToolResult } from "../types.js";
 import { buildAnalyzePrompt, buildIdeatePrompt, buildEvaluatePrompt, buildMvpPrompt, buildPitchPrompt, buildRetrospectivePrompt, runSubmissionChecks } from "../hackathon/workflows.js";
 
 const STATE_PATH = path.join(".clover", "state.json");
@@ -25,7 +25,7 @@ const STATE_PATH = path.join(".clover", "state.json");
 // ---------- 宠物出场 ----------
 
 function showPet(name?: string): void {
-  const pet = (name ? findPet(name) : undefined) ?? randomPet();
+  const pet = (name ? findPet(name) : undefined) ?? randomWelcomePet();
   console.log("\n" + renderPet(pet) + "\n");
   note(pet.caption);
 }
@@ -447,15 +447,65 @@ export function autoCommit(): string | null {
   }
 }
 
+
+/** 工具调用卡片：名称 + 关键参数 + 结果 */
+function toolCard(call: ToolCallRequest, result: ToolResult): string {
+  const args = toolCardArgs(call);
+  const first = result.output.split("\n")[0]?.trim() || (result.ok ? "完成" : "失败");
+  const short = first.length > 70 ? first.slice(0, 70) + "…" : first;
+  return "🔧 " + call.name + " " + args + " → " + (result.ok ? "✓ " : "✗ ") + short;
+}
+
+function toolCardArgs(call: ToolCallRequest): string {
+  const a = call.args ?? {};
+  if (call.name === "write_file") {
+    return String(a.path ?? "") + " · " + String(a.content ?? "").length + " 字符";
+  }
+  if (call.name === "run_command") return "`" + String(a.command ?? "").slice(0, 80) + "`";
+  if (call.name === "web_search") return "「" + String(a.query ?? "") + "」";
+  const parts = Object.entries(a)
+    .map(([k, v]) => k + "=" + String(v).slice(0, 60))
+    .slice(0, 3);
+  return parts.join(" ");
+}
+
 // ---------- start（对话模式） ----------
 
 export async function cmdStart(): Promise<void> {
   ensureProject();
   const config = requireConfigured();
   const provider = getActiveProvider(config);
-  const session = latestSession() ?? createSession();
+  let session = latestSession() ?? createSession();
   const permissions = new PermissionManager(config);
-  const agent = new Agent({ provider, session, budgetUsd: config.budgetUsd, permissions });
+  let agent = new Agent({ provider, session, budgetUsd: config.budgetUsd, permissions });
+  /** 流式回答：思考指示 → 逐字输出 → 工具卡片 */
+  const streamAnswer = async (text: string, images?: ImageBlock[]): Promise<void> => {
+    let started = false;
+    const begin = () => {
+      if (!started) {
+        started = true;
+        process.stdout.write("\n");
+      }
+    };
+    try {
+      const answer = await agent.turn(text, images, {
+        onText: (delta) => {
+          begin();
+          process.stdout.write(delta);
+        },
+        onToolResult: (call, result) => {
+          begin();
+          console.log(toolCard(call, result));
+        },
+      });
+      if (!started) process.stdout.write("\n" + answer + "\n");
+      else process.stdout.write("\n");
+    } catch (err) {
+      if (!started) process.stdout.write("\n");
+      throw err;
+    }
+  };
+
 
   let backupTimer: NodeJS.Timeout | null = null;
   if (config.autoBackup && config.backupIntervalMinutes > 0) {
@@ -467,6 +517,7 @@ export async function cmdStart(): Promise<void> {
   }
 
   showPet();
+  info("模型： " + provider.config.id + " / " + provider.config.model + " · 预算： " + formatUsd(config.budgetUsd) + " · 模式： " + (config.speedMode ? "竞速" : "默认确认") + " · 会话： " + session.id.slice(0, 8));
   banner("Clover 对话模式（输入 /quit 退出，/status 看预算，/help 帮助）");
   if (session.messages.length > 0) {
     note("已恢复会话：" + session.id.slice(0, 8) + "（" + session.messages.length + " 条消息）");
@@ -480,8 +531,20 @@ export async function cmdStart(): Promise<void> {
       cmdStatus();
       continue;
     }
+    if (input === "/cost") {
+      const u = agent.usage();
+      info("预算： " + formatUsd(config.budgetUsd) + " · 累计： " + formatUsd(u.costUsd) + " · tokens： " + u.inputTokens + " in / " + u.outputTokens + " out");
+      continue;
+    }
+    if (input === "/clear") {
+      session = createSession();
+      agent = new Agent({ provider, session, budgetUsd: config.budgetUsd, permissions });
+      showPet("happy");
+      note("已开启新会话");
+      continue;
+    }
     if (input === "/help") {
-      note("命令：/quit 退出 · /status 状态 · /img <图片> [问题] 发送图片 · /help 帮助");
+      note("命令：/quit 退出 · /status 状态 · /cost 花费 · /clear 新会话 · /img <图片> [问题] 发送图片 · /help 帮助");
       continue;
     }
     if (input.startsWith("/img ")) {
@@ -491,9 +554,8 @@ export async function cmdStart(): Promise<void> {
         continue;
       }
       try {
-        const answer = await agent.turn(parsed.text || "请描述这张图片", parsed.images);
-        console.log("\n" + answer + "\n");
-      } catch (err) {
+        await streamAnswer(parsed.text || "请描述这张图片", parsed.images);
+        } catch (err) {
         error(err instanceof Error ? err.message : String(err));
       }
       continue;
@@ -501,8 +563,7 @@ export async function cmdStart(): Promise<void> {
     const parsed = parseInputImages(input);
     if (!parsed.text && parsed.images.length === 0) continue;
     try {
-      const answer = await agent.turn(parsed.text || "请描述这张图片", parsed.images);
-      console.log("\n" + answer + "\n");
+      await streamAnswer(parsed.text || "请描述这张图片", parsed.images);
     } catch (err) {
       error(err instanceof Error ? err.message : String(err));
     }
