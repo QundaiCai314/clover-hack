@@ -14,6 +14,7 @@ import { loadGlobalConfig, saveGlobalConfig, GLOBAL_CONFIG_PATH, ARCHIVE_PATH, P
 import { formatUsd } from "../utils/cost.js";
 import { banner, info, note, warn, error } from "../utils/logger.js";
 import { findPet, renderPet, randomWelcomePet } from "../utils/pet.js";
+import { buildStatusBar, buildWelcomePanel } from "../utils/panel.js";
 import { searchWeb } from "../core/tools.js";
 import type { ArchiveEntry, CloverConfig, HackathonMeta, IdeaRecord, ImageBlock, ProviderConfig, ProviderId, ToolCallRequest, ToolResult } from "../types.js";
 import { buildAnalyzePrompt, buildIdeatePrompt, buildEvaluatePrompt, buildMvpPrompt, buildPitchPrompt, buildRetrospectivePrompt, runSubmissionChecks } from "../hackathon/workflows.js";
@@ -483,6 +484,15 @@ function toolCardArgs(call: ToolCallRequest): string {
   return parts.join(" ");
 }
 
+function cliVersion(): string {
+  const pkgPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json");
+  try {
+    return (JSON.parse(fs.readFileSync(pkgPath, "utf8")) as { version: string }).version || "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
 // ---------- start（对话模式） ----------
 
 export async function cmdStart(): Promise<void> {
@@ -555,12 +565,21 @@ export async function cmdStart(): Promise<void> {
     note("自动备份已开启：每 " + config.backupIntervalMinutes + " 分钟提交一次");
   }
 
-  showPet();
-  info("模型： " + provider.config.id + " / " + provider.config.model + " · 预算： " + formatUsd(config.budgetUsd) + " · 模式： " + (config.speedMode ? "竞速" : "默认确认") + " · 会话： " + session.id.slice(0, 8));
-  banner("Clover 对话模式（输入 /quit 退出，/status 看预算，/help 帮助）");
-  if (session.messages.length > 0) {
-    note("已恢复会话：" + session.id.slice(0, 8) + "（" + session.messages.length + " 条消息）");
-  }
+  const welcomeInfo = {
+    version: cliVersion(),
+    providerLabel: provider.config.id + " / " + provider.config.model,
+    budgetLabel: formatUsd(config.budgetUsd),
+    speedMode: config.speedMode,
+    folder: process.cwd(),
+    sessionLabel: session.messages.length > 0
+      ? "上次会话 " + session.id.slice(0, 8) + "（" + session.messages.length + " 条消息）"
+      : (config.language === "zh" ? "新会话，等你发令" : "New session, ready to go"),
+    sessionIdShort: session.id.slice(0, 8),
+    pet: randomWelcomePet(),
+    language: config.language ?? "zh",
+  };
+  console.log("\n" + buildWelcomePanel(welcomeInfo).join("\n") + "\n");
+  note(buildStatusBar(welcomeInfo));
 
   for (;;) {
     const input = (await askInput("clover>")).trim();
