@@ -10,7 +10,7 @@ import { createProvider } from "../models/provider.js";
 import type { ModelProvider } from "../models/provider.js";
 import { Agent } from "../core/agent.js";
 import { createSession, latestSession, listSessions, loadSession } from "../core/session.js";
-import { loadGlobalConfig, saveGlobalConfig, GLOBAL_CONFIG_PATH, ARCHIVE_PATH, PROJECT_CONFIG_PATH, requireProject, readJsonFile, writeJsonFile } from "../utils/config.js";
+import { loadGlobalConfig, saveGlobalConfig, GLOBAL_CONFIG_PATH, ARCHIVE_PATH, PROJECT_CONFIG_PATH, isProject, readJsonFile, writeJsonFile } from "../utils/config.js";
 import { formatUsd } from "../utils/cost.js";
 import { banner, info, note, warn, error } from "../utils/logger.js";
 import { findPet, randomPet, renderPet } from "../utils/pet.js";
@@ -98,6 +98,21 @@ export async function cmdInit(): Promise<void> {
   note("下一步：clover analyze <赛题文件或URL> 解析赛题");
 }
 
+/** 懒初始化：未初始化目录自动创建默认比赛档案，像 Claude Code 一样开箱即用 */
+function ensureProject(): void {
+  if (isProject()) return;
+  const name = path.basename(process.cwd()) || "My Hackathon";
+  const meta: HackathonMeta = {
+    name,
+    durationHours: 48,
+    createdAt: new Date().toISOString(),
+  };
+  fs.mkdirSync(".clover", { recursive: true });
+  writeJsonFile(PROJECT_CONFIG_PATH, { meta });
+  saveState({ meta });
+  note("已自动初始化比赛项目：「" + name + "」如需修改赛题或截止时间，运行 clover init");
+}
+
 export async function cmdNew(name: string): Promise<void> {
   const safe = name.replace(/[\\/:*?"<>|]/g, "-");
   const dir = path.join(process.cwd(), safe);
@@ -161,7 +176,7 @@ export function cmdStatus(): void {
 const TEMPLATES_DIR = fileURLToPath(new URL("../../src/templates", import.meta.url));
 
 export function cmdTemplate(type: string): void {
-  requireProject();
+  ensureProject();
   const valid = ["readme", "pitch", "submission", "timeline"];
   if (!valid.includes(type)) {
     throw new Error("不支持的模板类型：" + type + "（可用：readme / pitch / submission / timeline）");
@@ -179,7 +194,7 @@ export function cmdTemplate(type: string): void {
 }
 
 export async function cmdCheck(): Promise<void> {
-  requireProject();
+  ensureProject();
   banner("提交检查中…");
   const items = await runSubmissionChecks(getMeta());
   let allPass = true;
@@ -298,7 +313,7 @@ async function getChallengeSummary(config: CloverConfig): Promise<string> {
 }
 
 export async function cmdAnalyze(source?: string): Promise<void> {
-  requireProject();
+  ensureProject();
   const config = requireConfigured();
   let raw = source ?? "";
   if (!raw) raw = await askInput("粘贴赛题文本，或输入文件路径/URL");
@@ -320,7 +335,7 @@ export async function cmdAnalyze(source?: string): Promise<void> {
 }
 
 export async function cmdIdeate(): Promise<void> {
-  requireProject();
+  ensureProject();
   const config = requireConfigured();
   const summary = await getChallengeSummary(config);
   const skills = await askInput("你的技能栈（如 TypeScript/React/Node）", "通用 Web 开发");
@@ -332,7 +347,7 @@ export async function cmdIdeate(): Promise<void> {
 }
 
 export async function cmdEvaluate(idea?: string): Promise<void> {
-  requireProject();
+  ensureProject();
   const config = requireConfigured();
   const text = idea ?? (await askInput("要评估的点子描述"));
   banner("联网市场分析中…");
@@ -345,7 +360,7 @@ export async function cmdEvaluate(idea?: string): Promise<void> {
 }
 
 export async function cmdPlan(): Promise<void> {
-  requireProject();
+  ensureProject();
   const config = requireConfigured();
   const summary = await getChallengeSummary(config);
   const idea = await askInput("选定的点子（或输入文件路径）");
@@ -359,7 +374,7 @@ export async function cmdPlan(): Promise<void> {
 }
 
 export async function cmdPitch(): Promise<void> {
-  requireProject();
+  ensureProject();
   const config = requireConfigured();
   const meta = getMeta();
   const infoText = await askInput("项目信息（一句话）或文件路径");
@@ -372,7 +387,7 @@ export async function cmdPitch(): Promise<void> {
 }
 
 export async function cmdReview(): Promise<void> {
-  requireProject();
+  ensureProject();
   const config = requireConfigured();
   banner("生成复盘报告中…");
   const output = await runChatWith(getActiveProvider(config), buildRetrospectivePrompt(getMeta(), latestSession()));
@@ -435,7 +450,7 @@ export function autoCommit(): string | null {
 // ---------- start（对话模式） ----------
 
 export async function cmdStart(): Promise<void> {
-  requireProject();
+  ensureProject();
   const config = requireConfigured();
   const provider = getActiveProvider(config);
   const session = latestSession() ?? createSession();

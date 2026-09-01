@@ -22,8 +22,8 @@ Clover 以 Claude Code 风格的终端交互为体验基准，具备完整通用
 ```bash
 npm install -g clover-hackathon
 clover config        # 配置向导：模型、API Key、语言、预算
-clover init          # 在当前目录初始化比赛
-clover start         # 开始和 Clover 对话
+clover start         # 直接开跑！目录未初始化会自动初始化（像 Claude Code 一样开箱即用）
+clover init          # 可选：手动初始化，设置赛题、截止时间等
 ```
 
 > npm 包名 `clover` 若已被占用，本包使用 `clover-hackathon`，命令名保持 `clover`。
