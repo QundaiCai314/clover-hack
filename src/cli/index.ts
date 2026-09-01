@@ -1,6 +1,20 @@
 // CLI 入口：注册所有 clover 子命令
 
 import { Command } from "commander";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+// 从包根 package.json 读取版本号（src 与 dist 深度相同：../../package.json）
+function cliVersion(): string {
+  const pkgPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "package.json");
+  try {
+    return (JSON.parse(readFileSync(pkgPath, "utf8")) as { version: string }).version || "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
 import { cmdInit, cmdNew, cmdArchiveList, cmdConfig, cmdModels, cmdSessions, cmdStatus, cmdCheck, cmdTemplate, cmdAnalyze, cmdIdeate, cmdEvaluate, cmdPlan, cmdPitch, cmdReview, cmdStart } from "./commands.js";
 
 export async function runCli(): Promise<void> {
@@ -9,7 +23,7 @@ export async function runCli(): Promise<void> {
   program
     .name("clover")
     .description("🍀 Clover — 专为黑客松比赛设计的命令行 AI Agent")
-    .version("0.1.0");
+    .version(cliVersion());
 
   program
     .command("init")
